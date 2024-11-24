@@ -1,0 +1,12 @@
+# yolov3
+https://pystyle.info/pytorch-yolov3-how-to-use-pretrained-model/
+
+# 学習
+https://akifukka.hatenablog.com/entry/YOLOv3-tiny_train1
+https://ar-ray.hatenablog.com/entry/2021/01/15/235818
+https://himazin331.com/blog/hpfn_cclz
+
+
+
+
+
