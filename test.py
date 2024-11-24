@@ -32,6 +32,11 @@ def detect_blue_cubes(frame):
     # 面積を描画するためにMaskをコピー
     mask_with_area = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
+    # 特徴量の検出準備（ORB）
+    orb = cv2.ORB_create()
+    keypoints, descriptors = orb.detectAndCompute(frame, mask)
+
+    # 面積や特徴量を描画
     for contour in contours:
         # 面積が小さいノイズを除外
         area = cv2.contourArea(contour)
@@ -49,7 +54,14 @@ def detect_blue_cubes(frame):
                 cv2.putText(mask_with_area, f"{int(area)}", (cx - 20, cy - 20),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
-    return contour_frame, mask_with_area
+            # 凸包を描画
+            hull = cv2.convexHull(contour)
+            cv2.drawContours(contour_frame, [hull], -1, (0, 255, 0), 2)  # 緑で凸包を描画
+
+    # 特徴量点を描画（ORB）
+    frame_with_keypoints = cv2.drawKeypoints(frame, keypoints, None, color=(0, 255, 0), flags=cv2.DrawMatchesFlags_DEFAULT)
+
+    return contour_frame, mask_with_area, frame_with_keypoints
 
 def main():
     print("水色のキューブ検出を開始します。終了するには 'q' を押してください。")
@@ -59,11 +71,12 @@ def main():
         frame = capture_screen()
 
         # 水色のキューブを検出
-        contour_frame, mask_with_area = detect_blue_cubes(frame)
+        contour_frame, mask_with_area, frame_with_keypoints = detect_blue_cubes(frame)
 
         # 結果を表示
         cv2.imshow("Contour Detection", contour_frame)  # 輪郭検出結果
         cv2.imshow("Mask with Area", mask_with_area)  # 面積付きマスク結果
+        cv2.imshow("ORB Features", frame_with_keypoints)  # ORB特徴量表示
 
         # 'q'キーで終了
         if cv2.waitKey(1) & 0xFF == ord('q'):
