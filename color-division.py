@@ -12,6 +12,7 @@ def capture_screen():
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # RGBをBGRに変換
     return frame
 
+
 def detect_white(frame):
     """白色の物体を検出して結果を描画"""
     # BGRをHSVに変換
@@ -25,7 +26,6 @@ def detect_white(frame):
     mask = cv2.inRange(hsv, lower_white, upper_white)
 
     return mask
-
 
 
 def main():
@@ -84,12 +84,19 @@ def main():
             h_min = h_max
             h_max += 10
         
-        # 合成された画像を表示
-        cv2.imshow("Combined Hue Masks", result_img)
-
-        # 白検出
+        # 白色部分のマスクを作成
         white_mask = detect_white(img)
-        cv2.imshow("White Mask", white_mask)
+        
+        # 白部分だけを抽出して色付き画像の上に重ねる
+        # 白色部分を抽出するために白色マスクを使う
+        white_area = np.zeros_like(img)
+        white_area[white_mask == 255] = (255, 255, 255)  # 白色に設定
+
+        # 色付き画像の上に白色部分を重ねる（白色部分のみ）
+        combined_img = np.where(white_area == (255, 255, 255), white_area, result_img)
+        
+        # 合成された画像を表示
+        cv2.imshow("Combined Image", combined_img)
 
         # 'q'キーで終了
         if cv2.waitKey(1) & 0xFF == ord('q'):
