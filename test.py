@@ -17,25 +17,39 @@ def detect_blue_cubes(frame):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
     # 水色のHSV範囲を指定 (調整が必要な場合があります)
-    # lower_blue = np.array([90, 50, 50])  # 水色の下限値
-    # upper_blue = np.array([130, 255, 255])  # 水色の上限値
     lower_blue = np.array([90, 76, 180])  # 水色の下限値
     upper_blue = np.array([100, 234, 242])  # 水色の上限値
-    
+
     # 範囲内の色をマスク
     mask = cv2.inRange(hsv, lower_blue, upper_blue)
 
     # 輪郭を検出
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+    # オリジナルフレームをコピーして輪郭描画用に準備
+    contour_frame = frame.copy()
+
+    # 面積を描画するためにMaskをコピー
+    mask_with_area = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+
     for contour in contours:
         # 面積が小さいノイズを除外
-        if cv2.contourArea(contour) > 500:  # 面積閾値を調整
+        area = cv2.contourArea(contour)
+        if area > 500:  # 面積閾値を調整
             # 外接矩形を描画
             x, y, w, h = cv2.boundingRect(contour)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            cv2.rectangle(contour_frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
-    return frame, mask
+            # 輪郭の重心を計算
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])  # 重心のX座標
+                cy = int(M["m01"] / M["m00"])  # 重心のY座標
+                # 面積を重心付近に表示
+                cv2.putText(mask_with_area, f"{int(area)}", (cx - 20, cy - 20),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+    return contour_frame, mask_with_area
 
 def main():
     print("水色のキューブ検出を開始します。終了するには 'q' を押してください。")
@@ -45,11 +59,11 @@ def main():
         frame = capture_screen()
 
         # 水色のキューブを検出
-        result_frame, mask = detect_blue_cubes(frame)
+        contour_frame, mask_with_area = detect_blue_cubes(frame)
 
         # 結果を表示
-        cv2.imshow("Detected Blue Cubes", result_frame)
-        cv2.imshow("Mask", mask)
+        cv2.imshow("Contour Detection", contour_frame)  # 輪郭検出結果
+        cv2.imshow("Mask with Area", mask_with_area)  # 面積付きマスク結果
 
         # 'q'キーで終了
         if cv2.waitKey(1) & 0xFF == ord('q'):
