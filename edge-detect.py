@@ -11,7 +11,6 @@ def capture_screen():
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # RGBをBGRに変換
     return frame
 
-
 def main():
     print("輪郭検出を開始します。終了するには 'q' を押してください。")
 
@@ -19,19 +18,42 @@ def main():
         # 画像を読み込む
         img = capture_screen()
 
-        # Cannyエッジ検出
-        edges = cv2.Canny(img, threshold1=100, threshold2=250)
+        # カラー画像をグレースケールに変換
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # 輪郭検出
-        contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # ガウスぼかしでノイズを減らす
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-        # 黒背景に輪郭を描画
-        img_with_contours = np.zeros_like(img)  # 同じサイズで黒背景の画像を作成
-        cv2.drawContours(img_with_contours, contours, -1, (0, 255, 0), 2)  # 緑色で輪郭を描画
+        # 二値化処理
+        _, thresholded = cv2.threshold(blurred, 127, 255, cv2.THRESH_BINARY)
 
-        # エッジ画像と輪郭画像を表示
-        cv2.imshow("Edges", edges)  # エッジのみ表示
-        cv2.imshow("Contours", img_with_contours)  # 黒背景に輪郭のみ表示
+        # 輪郭の検出
+        contours, hierarchy = cv2.findContours(thresholded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # 小さな輪郭を除去（面積が500以下のものを除去）
+        min_area = 500
+        filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
+
+        # 輪郭の描画
+        img_contours = cv2.cvtColor(thresholded, cv2.COLOR_GRAY2BGR)  # 二値画像をカラー画像に変換
+
+        for cnt in filtered_contours:
+            # 輪郭の面積を計算
+            area = cv2.contourArea(cnt)
+
+            # 面積を輪郭の近くに表示
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                cv2.putText(img_contours, f"{area:.2f}", (cX, cY - 30), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+            # 輪郭を描画
+            cv2.drawContours(img_contours, [cnt], -1, (0, 255, 0), 2)
+
+        # 結果を表示
+        cv2.imshow("Contours", img_contours)
 
         # 'q'キーで終了
         if cv2.waitKey(1) & 0xFF == ord('q'):
