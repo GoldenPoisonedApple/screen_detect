@@ -22,7 +22,7 @@ def main():
         img = capture_screen()
         
         # Cannyエッジ検出
-        edges = cv2.Canny(img, threshold1=100, threshold2=200)
+        edges = cv2.Canny(img, threshold1=100, threshold2=250)
         
         # 結果を表示
         cv2.imshow("Red Mask", edges)  # 赤色のマスク
