@@ -5,11 +5,11 @@ import pyautogui
 # 設定値（定数として管理）
 HUE_SEGMENTS = 18  # 色相範囲の分割数
 HUE_STEP = 180 // HUE_SEGMENTS  # 色相の範囲ステップ
-HUE_COLORS = [
-    (0, 0, 255), (0, 0, 204), (0, 128, 255), (0, 255, 255), (0, 255, 204),
-    (0, 255, 128), (0, 255, 0), (128, 255, 0), (255, 255, 0), (255, 255, 128),
-    (255, 0, 0), (204, 0, 255), (128, 0, 255), (255, 0, 255), (255, 0, 204),
-    (204, 0, 204), (128, 0, 204), (128, 0, 255)
+HUE_HSV = [
+    (0, 255, 255), (10, 255, 255), (20, 255, 255), (30, 255, 255), (40, 255, 255),
+    (50, 255, 255), (60, 255, 255), (70, 255, 255), (80, 255, 255), (90, 255, 255),
+    (100, 255, 255), (110, 255, 255), (120, 255, 255), (130, 255, 255), (140, 255, 255),
+    (150, 255, 255), (160, 255, 255), (170, 255, 255)
 ]
 WHITE_HSV_RANGE = (np.array([0, 0, 200]), np.array([180, 100, 255]))  # 白色のHSV範囲
 
@@ -43,6 +43,13 @@ def detect_white(hsv_img):
     return cv2.inRange(hsv_img, lower_white, upper_white)
 
 
+def hsv_to_rgb(hsv_color):
+    """
+    HSV色をRGB色に変換する関数
+    """
+    return tuple(cv2.cvtColor(np.array([[hsv_color]], dtype=np.uint8), cv2.COLOR_HSV2BGR)[0][0])
+
+
 def overlay_color_masks(hsv_img):
     """
     HSV画像に基づいて色相ごとのマスクを作成し、結果を合成して返す。
@@ -50,11 +57,14 @@ def overlay_color_masks(hsv_img):
     result_img = np.zeros_like(hsv_img, dtype=np.uint8)
     h_min = 0
 
-    for i, color in enumerate(HUE_COLORS):
+    for hsv in HUE_HSV:
         h_max = h_min + HUE_STEP
         mask = create_hue_mask(hsv_img, h_min, h_max)
         color_mask = np.zeros_like(result_img)
-        color_mask[mask == 255] = color
+        
+        # HSVをRGBに変換して適用
+        rgb_color = hsv_to_rgb(hsv)
+        color_mask[mask == 255] = rgb_color
         result_img = cv2.add(result_img, color_mask)
         h_min = h_max
 
