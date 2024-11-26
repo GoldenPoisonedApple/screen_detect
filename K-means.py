@@ -12,7 +12,7 @@ HUE_HSV = [
     (100, 255, 255), (110, 255, 255), (120, 255, 255), (130, 255, 255), (140, 255, 255),
     (150, 255, 255), (160, 255, 255), (170, 255, 255)
 ]
-WHITE_HSV_RANGE = (np.array([0, 0, 200]), np.array([180, 100, 255]))  # 白色のHSV範囲
+WHITE_HSV_RANGE = (np.array([0, 0, 150]), np.array([180, 100, 255]))  # 白色のHSV範囲
 
 
 def capture_screen(region_ratio=0.5):
@@ -123,15 +123,21 @@ def main():
         # エッジ検出とクラスタリング
         contours, labels, cluster_centers = find_contours_and_cluster(frame, hsv_img)
 
+        # 新しい画像detected_imgを作成して、矩形を描画
+        detected_img = combined_img.copy()  # combined_imgをコピーして使う
+
         # クラスタの中心を使って色を決定（HSV -> BGR変換）
         for i, contour in enumerate(contours):
             # 各輪郭に対して矩形を描画
             x, y, w, h = cv2.boundingRect(contour)
             color = tuple(int(c) for c in cv2.cvtColor(np.uint8([[cluster_centers[labels[i]]]]), cv2.COLOR_HSV2BGR)[0][0])
-            cv2.rectangle(combined_img, (x, y), (x + w, y + h), color, 2)
+            cv2.rectangle(detected_img, (x, y), (x + w, y + h), color, 2)  # detected_imgに描画
+
 
         # 結果を表示
-        cv2.imshow("Clustering and Object Detection", combined_img)
+        cv2.imshow("HSV Masked Image", combined_img)  # 色相マスクを表示
+        cv2.imshow("Edge Detection", cv2.Canny(frame, threshold1=100, threshold2=250))  # エッジ検出結果を表示
+        cv2.imshow("Clustering and Object Detection", detected_img)  # クラスタリングされた物体を表示
 
         # 'q'キーで終了
         if cv2.waitKey(1) & 0xFF == ord('q'):
