@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import pyautogui
-from sklearn.cluster import KMeans
 
 # 設定値（定数として管理）
 HUE_SEGMENTS = 18  # 色相範囲の分割数
@@ -12,7 +11,7 @@ HUE_HSV = [
     (100, 255, 255), (110, 255, 255), (120, 255, 255), (130, 255, 255), (140, 255, 255),
     (150, 255, 255), (160, 255, 255), (170, 255, 255)
 ]
-WHITE_HSV_RANGE = (np.array([0, 0, 150]), np.array([180, 100, 255]))  # 白色のHSV範囲
+WHITE_HSV_RANGE = (np.array([0, 0, 200]), np.array([180, 100, 255]))  # 白色のHSV範囲
 
 
 def capture_screen(region_ratio=0.5):
@@ -44,9 +43,16 @@ def detect_white(hsv_img):
     return cv2.inRange(hsv_img, lower_white, upper_white)
 
 
+def hsv_to_rgb(hsv_color):
+    """
+    HSV色をRGB色に変換する関数
+    """
+    return tuple(cv2.cvtColor(np.array([[hsv_color]], dtype=np.uint8), cv2.COLOR_HSV2BGR)[0][0])
+
+
 def overlay_color_masks(hsv_img):
     """
-    HSV画像に基づいて色相ごとのマスクを作成し、結果を合成して返す。
+    HSV画像に基づいて色相ごとのマスクを作成し、輪郭に代表色の矩形を描画して返す。
     """
     result_img = np.zeros_like(hsv_img, dtype=np.uint8)
     h_min = 0
@@ -55,14 +61,30 @@ def overlay_color_masks(hsv_img):
         h_max = h_min + HUE_STEP
         mask = create_hue_mask(hsv_img, h_min, h_max)
         color_mask = np.zeros_like(result_img)
-        
+
         # HSVをRGBに変換して適用
-        rgb_color = tuple(cv2.cvtColor(np.array([[hsv]], dtype=np.uint8), cv2.COLOR_HSV2BGR)[0][0])
+        rgb_color = hsv_to_rgb(hsv)
+
+        # RGB -> BGR に変換
+        bgr_color = (int(rgb_color[2]), int(rgb_color[1]), int(rgb_color[0]))  # 正しいBGR形式
+
         color_mask[mask == 255] = rgb_color
         result_img = cv2.add(result_img, color_mask)
+
+        # 輪郭の検出
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cnt in contours:
+            if cv2.contourArea(cnt) > 500:  # 面積が500より大きい輪郭のみ
+                # 外接矩形を描画
+                x, y, w, h = cv2.boundingRect(cnt)
+                cv2.rectangle(result_img, (x, y), (x + w, y + h), bgr_color, 2)
+
         h_min = h_max
 
     return result_img
+
+
 
 
 def combine_images(color_img, white_mask):
@@ -74,37 +96,8 @@ def combine_images(color_img, white_mask):
     return np.where(white_area == (255, 255, 255), white_area, color_img)
 
 
-def find_contours_and_cluster(frame, hsv_img):
-    """
-    エッジ検出とクラスタリングを行い、物体を分離して矩形で囲む
-    """
-    # Cannyエッジ検出
-    edges = cv2.Canny(frame, threshold1=100, threshold2=250)
-
-    # エッジ画像から輪郭を検出
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # 輪郭情報をHSV色空間の値とともに保存
-    hsv_values = []
-    for contour in contours:
-        for point in contour:
-            x, y = point[0]
-            hsv_values.append(hsv_img[y, x])  # hsv_imgはy,x順
-
-    # KMeansクラスタリング
-    kmeans = KMeans(n_clusters=3)  # クラス数を3に設定（クラスタ数は必要に応じて調整）
-    hsv_values = np.array(hsv_values)
-    kmeans.fit(hsv_values)
-    
-    # クラスタごとの色を取得
-    cluster_centers = kmeans.cluster_centers_
-    labels = kmeans.labels_
-
-    return contours, labels, cluster_centers
-
-
 def main():
-    print("色情報とエッジ情報を使って物体を分離し、クラスタリングします。終了するには 'q' を押してください。")
+    print("色相を18分割して物体を抽出し、一画面に統合します。終了するには 'q' を押してください。")
 
     while True:
         # スクリーンをキャプチャ
@@ -120,24 +113,8 @@ def main():
         white_mask = detect_white(hsv_img)
         combined_img = combine_images(color_result, white_mask)
 
-        # エッジ検出とクラスタリング
-        contours, labels, cluster_centers = find_contours_and_cluster(frame, hsv_img)
-
-        # 新しい画像detected_imgを作成して、矩形を描画
-        detected_img = combined_img.copy()  # combined_imgをコピーして使う
-
-        # クラスタの中心を使って色を決定（HSV -> BGR変換）
-        for i, contour in enumerate(contours):
-            # 各輪郭に対して矩形を描画
-            x, y, w, h = cv2.boundingRect(contour)
-            color = tuple(int(c) for c in cv2.cvtColor(np.uint8([[cluster_centers[labels[i]]]]), cv2.COLOR_HSV2BGR)[0][0])
-            cv2.rectangle(detected_img, (x, y), (x + w, y + h), color, 2)  # detected_imgに描画
-
-
-        # 結果を表示
-        cv2.imshow("HSV Masked Image", combined_img)  # 色相マスクを表示
-        cv2.imshow("Edge Detection", cv2.Canny(frame, threshold1=100, threshold2=250))  # エッジ検出結果を表示
-        cv2.imshow("Clustering and Object Detection", detected_img)  # クラスタリングされた物体を表示
+        # 結果の表示
+        cv2.imshow("Combined Image", combined_img)
 
         # 'q'キーで終了
         if cv2.waitKey(1) & 0xFF == ord('q'):
