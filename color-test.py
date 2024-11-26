@@ -28,7 +28,7 @@ def create_hue_mask(hsv_img, h_min, h_max):
 		"""
 		指定された色相範囲に基づいてマスクを作成。
 		"""
-		lower_bound = np.array([h_min, 100, 100])
+		lower_bound = np.array([h_min, 80, 100])
 		upper_bound = np.array([h_max, 255, 255])
 		return cv2.inRange(hsv_img, lower_bound, upper_bound)
 
@@ -45,9 +45,19 @@ def hsv_to_bgr(hsv_color):
     bgr_color = cv2.cvtColor(np.array([[hsv_color]], dtype=np.uint8), cv2.COLOR_HSV2BGR)[0][0]
     # BGRカラーが整数のタプルとして返されることを確認 矩形描画で怒られる
     return tuple(int(c) for c in bgr_color)
-  
 
-def detect_mono_color(hsv_img, h_step):
+def decrease_brightness(frame, factor=0.5):
+    """
+    画像の明度を下げる関数。
+    factor: 明度の減少率 (0.0 - 1.0)。
+            1.0は明度をそのまま、0.0は完全に黒にする。
+    """
+    # 画像の輝度を減少させるため、スカラー値を掛ける
+    frame = frame * factor
+    frame = np.clip(frame, 0, 255).astype(np.uint8)  # 明度が255を超えないように制限
+    return frame
+
+def detect_mono_color(hsv_img, h_step, black_background=True):
 		"""
 		指定された色相範囲のマスクを作成し、輪郭を検出して描画する。
 		"""
@@ -59,8 +69,12 @@ def detect_mono_color(hsv_img, h_step):
 		min_area = 500
 		filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
   
-		# 輪郭の描画
-		img_contours = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)  # 二値画像をカラー画像に変換
+		# 背景の選択
+		if black_background:
+				img_contours = np.zeros_like(hsv_img, dtype=np.uint8)
+		else:
+				img_contours = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)  # 二値画像をカラー画像に変換
+
 		# 代表色をBGRに変換
 		bgr_color = hsv_to_bgr(HUE_HSV[h_step])
 		for cnt in filtered_contours:
@@ -68,19 +82,20 @@ def detect_mono_color(hsv_img, h_step):
 				area = cv2.contourArea(cnt)
 	
 				# 外接矩形を描画
-				x, y, w, h = cv2.boundingRect(cnt)
-				cv2.rectangle(img_contours, (x, y), (x + w, y + h), bgr_color, 2)
+				# x, y, w, h = cv2.boundingRect(cnt)
+				# cv2.rectangle(img_contours, (x, y), (x + w, y + h), bgr_color, 2)
 
 				# 面積を輪郭の近くに表示
 				M = cv2.moments(cnt)
 				if M["m00"] != 0:
 						cX = int(M["m10"] / M["m00"])
 						cY = int(M["m01"] / M["m00"])
-						cv2.putText(img_contours, f"{area:.2f}", (cX, cY - 30), 
+						cv2.putText(img_contours, f"{h_step}: {int(area)}", (cX, cY - 30), 
 												cv2.FONT_HERSHEY_SIMPLEX, 0.5, bgr_color, 2)
 				# 輪郭を描画
 				cv2.drawContours(img_contours, [cnt], -1, bgr_color, 2)
 		return img_contours
+
 
 def main():
 		print("輪郭検出を開始します。終了するには 'q' を押してください。")
@@ -92,7 +107,7 @@ def main():
     
 				# HSV変換
 				hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-				result_img = np.zeros_like(hsv_img, dtype=np.uint8)
+				result_img = decrease_brightness(img.copy())
 				for i in range(HUE_SEGMENTS):
 						# 単色検出
 						mono_countor = detect_mono_color(hsv_img, i)
@@ -100,7 +115,6 @@ def main():
 
 
 				# 結果を表示
-				cv2.imshow("Contours", img)
 				cv2.imshow("Mask", result_img)
 
 				# 'q'キーで終了
