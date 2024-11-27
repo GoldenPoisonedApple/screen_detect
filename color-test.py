@@ -2,6 +2,12 @@ import cv2
 import numpy as np
 import pyautogui
 
+
+# もっと色細かくしてからk-meansで分類して、近いやつはくっつけるとかで色々やってみる
+
+
+
+
 # 設定値（定数として管理）
 HUE_SEGMENTS = 18  # 色相範囲の分割数
 HUE_STEP = 180 // HUE_SEGMENTS  # 色相の範囲ステップ
