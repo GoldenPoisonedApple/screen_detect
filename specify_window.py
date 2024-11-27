@@ -35,8 +35,12 @@ def capture_window_area(root):
 		# 画像をBGR形式に変換
 		frame = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
 
+		# 画像を1/2に縮小
+		frame_resized = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+
+
 		# キャプチャ結果を保存
-		return frame
+		return frame_resized
 
 
 
