@@ -1,2 +1,4 @@
 /venv
 /pytorch_yolov3
+
+*.lnk
