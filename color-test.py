@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import pyautogui
-
+import specify_window
 
 # もっと色細かくしてからk-meansで分類して、近いやつはくっつけるとかで色々やってみる
 
@@ -106,9 +106,10 @@ def detect_mono_color(hsv_img, h_step, black_background=True):
 def main():
 		print("輪郭検出を開始します。終了するには 'q' を押してください。")
 
+		root = specify_window.init_capture_window()
 		while True:
 				# 画像を読み込む
-				img = capture_screen()
+				img = specify_window.capture_window_area(root)
     
     
 				# HSV変換
